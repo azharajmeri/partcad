@@ -19,12 +19,12 @@ import threading
 from .cache_hash import CacheHash
 from .render import *
 from .shape_config import ShapeConfiguration
-from .user_config import user_config
 from .utils import total_size
 from . import exception
 from . import logging as pc_logging
-from . import sync_threads as pc_thread
+from .sync_threads import threadpool_manager
 from . import wrapper
+from .user_config import UserConfig
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "wrappers"))
 from ocp_serialize import register as register_ocp_helper
@@ -40,7 +40,7 @@ class Shape(ShapeConfiguration):
 
     errors: list[str]
 
-    def __init__(self, project_name: str, config: dict) -> None:
+    def __init__(self, project_name: str, config: dict, user_config: UserConfig) -> None:
         super().__init__(config)
         self.project_name = project_name
         self.errors = []
@@ -49,6 +49,7 @@ class Shape(ShapeConfiguration):
         self.components = []
         self.compound = None
         self.with_ports = None
+        self.user_config = user_config
 
         # Leave the svg path empty to get it created on demand
         self.svg_lock = asyncio.Lock()
@@ -68,7 +69,7 @@ class Shape(ShapeConfiguration):
         self._wrapped = None
 
         # Filesystem cache
-        self.hash = CacheHash(f"{self.project_name}:{self.name}")
+        self.hash = CacheHash(f"{self.project_name}:{self.name}", cache=self.user_config.cache)
         self.hash.set_dependencies(self.cache_dependencies)
 
         if self.cacheable:
@@ -79,7 +80,7 @@ class Shape(ShapeConfiguration):
             self.hash.add_dict(cad_config)
 
     def get_cache_dependencies_broken(self) -> bool:
-        if user_config.cache_dependencies_ignore:
+        if self.user_config.cache_dependencies_ignore:
             return False
         return self.cache_dependencies_broken
 
@@ -129,7 +130,7 @@ class Shape(ShapeConfiguration):
                         if self.kind in cached and cached[self.kind] is not None:
                             return cached[self.kind]
                     else:
-                        if user_config.cache:
+                        if self.user_config.cache:
                             pc_logging.warning(f"No cache hash for shape: {self.name}")
                 else:
                     cache_hash = None
@@ -553,7 +554,7 @@ class Shape(ShapeConfiguration):
                 writer.Transfer(obj, STEPControl_AsIs)
                 writer.Write(filepath)
 
-            await pc_thread.run(do_render_step)
+            await threadpool_manager.run(do_render_step)
 
     def render_step(
         self,
@@ -585,7 +586,7 @@ class Shape(ShapeConfiguration):
                 with open(filepath, "wb") as brep_file:
                     brep_writer.Write_s(obj, brep_file)
 
-            await pc_thread.run(do_render_brep)
+            await threadpool_manager.run(do_render_brep)
 
     def render_brep(
         self,
@@ -647,7 +648,7 @@ class Shape(ShapeConfiguration):
                 writer.ASCIIMode = ascii
                 writer.Write(obj, filepath)
 
-            await pc_thread.run(do_render_stl)
+            await threadpool_manager.run(do_render_stl)
 
     def render_stl(
         self,
@@ -906,7 +907,7 @@ class Shape(ShapeConfiguration):
                     angular_deflection=angularTolerance,
                 )
 
-            await pc_thread.run(do_render_gltf)
+            await threadpool_manager.run(do_render_gltf)
 
     def render_gltf(
         self,

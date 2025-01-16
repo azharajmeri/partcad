@@ -11,16 +11,17 @@ import math
 import typing
 
 from .shape_ai import ShapeWithAi
-from . import sync_threads as pc_thread
+from .sync_threads import threadpool_manager
 from . import logging as pc_logging
+from .user_config import UserConfig
 
 
 class Part(ShapeWithAi):
     path: typing.Optional[str] = None
     url: typing.Optional[str] = None
 
-    def __init__(self, project_name: str, config: dict = {}, shape=None):
-        super().__init__(project_name, config)
+    def __init__(self, project_name: str, config: dict = {}, shape=None, user_config: UserConfig=None):
+        super().__init__(project_name, config, user_config)
 
         self.kind = "part"
         self._wrapped = shape
@@ -30,7 +31,7 @@ class Part(ShapeWithAi):
             self.url = config["url"]
 
     async def get_shape(self, ctx):
-        return await pc_thread.run_async(self.instantiate, self)
+        return await threadpool_manager.run_async(self.instantiate, self)
 
     async def get_mcftt(self, property: str):
         """Get the material, color, finish, texture or tolerance of the part."""

@@ -13,8 +13,9 @@ import build123d as b3d
 
 from .shape import Shape
 from .shape_ai import ShapeWithAi
-from . import sync_threads as pc_thread
+from .sync_threads import threadpool_manager
 from . import logging as pc_logging
+from .user_config import UserConfig
 
 
 class AssemblyChild:
@@ -27,8 +28,8 @@ class AssemblyChild:
 class Assembly(ShapeWithAi):
     path: typing.Optional[str] = None
 
-    def __init__(self, project_name: str, config: dict = {}):
-        super().__init__(project_name, config)
+    def __init__(self, project_name: str, config: dict = {}, user_config: UserConfig = None):
+        super().__init__(project_name, config, user_config)
 
         self.location = config.get("location")
         self.kind = "assembly"
@@ -39,7 +40,7 @@ class Assembly(ShapeWithAi):
     async def do_instantiate(self):
         if len(self.children) == 0:
             self._wrapped = None  # Invalidate if any
-            await pc_thread.run(self.instantiate, self)
+            await threadpool_manager.run(self.instantiate, self)
             if len(self.children) == 0:
                 pc_logging.warning(f"The assembly {self.project_name}:{self.name} is empty")
 

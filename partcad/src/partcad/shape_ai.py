@@ -14,13 +14,13 @@ import yaml
 from .ai import Ai
 from . import logging as pc_logging
 from .shape import Shape
-from .user_config import user_config
+from .user_config import UserConfig
 
 
 class ShapeWithAi(Shape, Ai):
 
-    def __init__(self, project_name: str, config):
-        super().__init__(project_name, config)
+    def __init__(self, project_name: str, config, user_config: UserConfig):
+        super().__init__(project_name, config, user_config)
 
     # @override
     async def get_summary_async(self, project=None):
@@ -66,8 +66,8 @@ Produce text which is ready to be narrated as is.
 """
 
         config = {
-            "model": ("gpt-4o" if user_config.openai_api_key is not None else "gemini-1.5-pro"),
-            "provider": ("openai" if user_config.openai_api_key is not None else "google"),
+            "model": ("gpt-4o" if project.ctx.user_config.openai_api_key is not None else "gemini-1.5-pro"),
+            "provider": ("openai" if project.ctx.user_config.openai_api_key is not None else "google"),
         }
         summary = self.generate(
             "Desc",

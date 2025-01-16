@@ -8,6 +8,7 @@ import platform
 
 from partcad.logging_ansi_terminal import init as logging_ansi_terminal_init  # 1s
 from partcad_cli.click.loader import Loader
+from partcad.user_config import UserConfig
 
 locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 
@@ -301,15 +302,6 @@ def cli(ctx, verbose, quiet, no_ansi, package, format, **kwargs):
         ("PC_SENTRY_TRACES_SAMPLE_RATE", "sentry_traces_sample_rate"),
     ]
 
-    for env_var, attrib in user_config_options:
-        value = kwargs.get(attrib, None)
-        if value is not None and user_config._get_env(env_var) is None:
-            if "sentry" in attrib:
-                attrib = attrib.replace("sentry_", "sentry.")
-                user_config.set(attrib, value)
-            else:
-                setattr(user_config, attrib, value)
-
     if ctx.invoked_subcommand in commands_with_forced_update:
         user_config.force_update = True
 
@@ -328,13 +320,30 @@ def cli(ctx, verbose, quiet, no_ansi, package, format, **kwargs):
         "supply",  # Actually context is needed for "quote" but for now it it is what it is
         "test",
         "update",
+        "reset",
+        "status",
+        "config"
     ]
 
     if ctx.invoked_subcommand in commands_with_context:
         from partcad.globals import init
+        import partcad.user_config as pc_usr_config
 
         try:
-            ctx.obj = init(package)
+            user_config = UserConfig()
+            user_config.force_update = ctx.invoked_subcommand in commands_with_forced_update
+
+            for env_var, attrib in user_config_options:
+                value = kwargs.get(attrib, None)
+                if value is not None and user_config._get_env(env_var) is None:
+                    if 'sentry' in attrib:
+                        attrib = attrib.replace('sentry_', 'sentry.')
+                        user_config.set(attrib, value)
+                    else:
+                        setattr(user_config, attrib, value)
+            pc_usr_config.user_config = user_config
+
+            ctx.obj = init(package, user_config=user_config)
         except (yaml.parser.ParserError, yaml.scanner.ScannerError) as e:
             exc = click.BadParameter("Invalid configuration file", ctx=ctx, param=package, param_hint=None)
             exc.exit_code = 2

@@ -33,7 +33,7 @@ class SketchFactory(ShapeFactory):
         self.orig_name = config["orig_name"]
 
     def _create_sketch(self, config: object) -> Sketch:
-        sketch = Sketch(self.target_project.name, config)
+        sketch = Sketch(self.target_project.name, config, self.ctx.user_config)
         sketch.instantiate = lambda sketch_self: self.instantiate(sketch_self)
         sketch.info = lambda: self.info(sketch)
         sketch.with_ports = self.with_ports

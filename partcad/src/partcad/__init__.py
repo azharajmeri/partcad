@@ -1,6 +1,7 @@
+__version__: str = "0.7.119"
+
 from build123d import Location
 
-from .sentry import init_sentry
 from .globals import (
     init,
     fini,
@@ -51,6 +52,3 @@ __all__ = [
     "scene",
     "exception",
 ]
-
-__version__: str = "0.7.119"
-init_sentry(__version__)

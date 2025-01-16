@@ -22,7 +22,7 @@ def test_assembly_primitive():
     part2 = ctx.get_part("//produce_part_cadquery_primitive:cylinder")
     assert part2 is not None
 
-    model = pc.Assembly({"name": "example1"})
+    model = pc.Assembly({"name": "example1"}, user_config=ctx.user_config)
     model.add(part1, loc=pc.Location((0, 0, 0), (0, 0, 1), 0))
     model.add(part2, loc=pc.Location((0, 0, 1), (0, 0, 1), 0))
     assert asyncio.run(model.get_wrapped(ctx)) is not None

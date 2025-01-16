@@ -24,7 +24,7 @@ class AssemblyFactory(ShapeFactory):
         self.orig_name = config["orig_name"]
 
     def _create(self, config) -> None:
-        self.assembly = Assembly(self.project.name, config)
+        self.assembly = Assembly(self.project.name, config, self.ctx.user_config)
         self.assembly.instantiate = lambda assembly_self: self.instantiate(assembly_self)
         self.assembly.info = lambda: self.info(self.assembly)
         self.assembly.with_ports = self.with_ports

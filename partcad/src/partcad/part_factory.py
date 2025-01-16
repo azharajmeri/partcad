@@ -33,7 +33,7 @@ class PartFactory(ShapeFactory):
         self.orig_name = config["orig_name"]
 
     def _create_part(self, config: object) -> Part:
-        part = Part(self.target_project.name, config)
+        part = Part(self.target_project.name, config, user_config=self.ctx.user_config)
         part.instantiate = lambda part_self: self.instantiate(part_self)
         part.info = lambda: self.info(part)
         part.with_ports = self.with_ports
