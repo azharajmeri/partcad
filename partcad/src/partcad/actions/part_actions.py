@@ -10,6 +10,7 @@ from partcad.project import Project
 from partcad.utils import resolve_resource_path
 from partcad.adhoc.convert import convert_cad_file
 
+# Mapping of target formats to file extensions.
 EXTENSION_MAPPING = {
     "step": "step",
     "brep": "brep",
@@ -19,6 +20,7 @@ EXTENSION_MAPPING = {
     "obj": "obj",
     "gltf": "gltf",
 }
+
 
 def add_part_action(project: Project, kind: str, path: str, config: Optional[dict] = None):
     """Add an existing part to the project without copying."""
@@ -34,9 +36,28 @@ def add_part_action(project: Project, kind: str, path: str, config: Optional[dic
             pc_logging.info(f"Part '{name}' added successfully.")
 
 
-def import_part_action(project: Project, kind: str, name: str, source_path: str,
-                       config: Optional[dict] = None, target_format: Optional[str] = None):
-    """Import an existing part into the project, optionally converting it first using ad-hoc conversion."""
+def import_part_action(
+    project: Project,
+    kind: str,
+    name: str,
+    source_path: str,
+    config: Optional[dict] = None,
+    target_format: Optional[str] = None,
+    target_dir: Optional[str] = None
+):
+    """
+    Import an existing part into the project by copying it to the target folder and updating the configuration.
+    Optionally perform an ad-hoc conversion if target_format is specified and differs from the source kind.
+
+    Args:
+        project (Project): The active PartCAD project.
+        kind (str): The original part type (e.g., "step").
+        name (str): The part name.
+        source_path (str): Path to the source file.
+        config (dict, optional): Additional configuration.
+        target_format (str, optional): Format for conversion before saving.
+        target_dir (str, optional): Directory inside the project to store the imported part.
+    """
     config = config or {}
     source_path = Path(source_path).resolve()
     original_source = source_path
@@ -46,42 +67,44 @@ def import_part_action(project: Project, kind: str, name: str, source_path: str,
     if not source_path.exists():
         raise ValueError(f"Source file '{source_path}' not found.")
 
-    # If a target format is specified, perform ad-hoc conversion before adding to project
+    # If conversion is needed (target_format provided and differs from kind)
+    temp_dir = None
     if target_format and target_format != kind:
         temp_dir = Path(tempfile.mkdtemp())
         converted_path = temp_dir / f"{name}.{target_format}"
-
         pc_logging.info(f"Performing ad-hoc conversion: {kind} -> {target_format}")
         convert_cad_file(str(source_path), kind, str(converted_path), target_format)
-
         if not converted_path.exists():
             raise RuntimeError(f"Ad-hoc conversion failed: {source_path} -> {converted_path}")
-
-        # Update the kind and source path for further processing
+        # Update kind and source_path after conversion
         kind = target_format
         source_path = converted_path
         pc_logging.info(f"Ad-hoc conversion successful: {converted_path}")
 
-    # Define target path inside the project
-    target_path = (Path(project.path) / f"{name}.{kind}").resolve()
+    # Determine target folder inside project
+    target_folder = (Path(project.path) / target_dir).resolve() if target_dir else Path(project.path).resolve()
+    target_folder.mkdir(parents=True, exist_ok=True)
+    target_path = (target_folder / f"{name}.{kind}").resolve()
 
+    # Log the target path and copy if needed
     if target_path.exists() and source_path.samefile(target_path):
-        pc_logging.warning(f"Skipping copy: source and target paths are the same ({source_path}).")
+        pc_logging.warning(f"Skipping copy: source and target are the same ({source_path}).")
     else:
         try:
             shutil.copy2(source_path, target_path)
         except shutil.Error as e:
             raise ValueError(f"Failed to copy '{source_path}' -> '{target_path}': {e}")
 
+    # Update project configuration and add the part
     add_part_action(project, kind, str(target_path), config)
     pc_logging.info(f"Part '{name}' imported successfully.")
 
-    # Reload context to refresh project parts
+    # Optionally, reload the context to refresh project parts
     ctx = Context(project.ctx.root_path)
     project = ctx.get_project(partcad.ROOT)
 
-    # Cleanup temporary converted file if ad-hoc conversion was performed
-    if source_path != original_source:
+    # Cleanup temporary conversion directory if conversion was performed
+    if temp_dir:
         try:
             shutil.rmtree(temp_dir)
             pc_logging.info(f"Cleaned up temporary conversion directory: {temp_dir}")
@@ -92,8 +115,8 @@ def import_part_action(project: Project, kind: str, name: str, source_path: str,
 def convert_part_action(project: Project, object_name: str, target_format: str,
                         output_dir: Optional[str] = None, dry_run: bool = False):
     """Convert a part to a new format and update its configuration."""
+    # Resolve the package and part name based on the project's context.
     package_name, part_name = resolve_resource_path(project.name, object_name)
-
     pc_logging.info(f"Resolving package '{package_name}', part '{part_name}'")
 
     if project.name != package_name:
@@ -108,6 +131,7 @@ def convert_part_action(project: Project, object_name: str, target_format: str,
     if part_config is None:
         raise ValueError(f"Object '{part_name}' not found in project configuration.")
 
+    # Determine the current part path.
     part_path = part_config.get("path")
     old_path = (Path(project.path) / part_path) if part_path else Path(project.config_dir) / f"{part_name}.{target_format}"
 
@@ -132,6 +156,7 @@ def convert_part_action(project: Project, object_name: str, target_format: str,
     pc_logging.info(f"Conversion of '{part_name}' completed.")
 
     try:
+        # Get the new part path relative to the project.
         config_path = new_path.relative_to(project.path)
     except ValueError:
         config_path = new_path
