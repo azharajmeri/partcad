@@ -15,13 +15,13 @@ import asyncio
 from partcad.test.all import tests as all_tests
 
 
-async def cli_test_async(ctx, packages, filter_prefix, sketch, interface, assembly, scene, object):
+async def cli_test_async(ctx, packages, filter_prefix, concurrency_cap, sketch, interface, assembly, scene, object):
     """
     TODO-118: @alexanderilyin: Add scene support
     """
     tasks = []
 
-    tests_to_run = all_tests()
+    tests_to_run = all_tests(concurrency_cap)
     if filter_prefix:
         tests_to_run = list(filter(lambda t: t.name.startswith(filter_prefix), tests_to_run))
         logging.debug(f"Running tests with prefix {filter_prefix}")
@@ -41,6 +41,8 @@ async def cli_test_async(ctx, packages, filter_prefix, sketch, interface, assemb
             shape = prj.get_interface(object)
             if shape is None:
                 logging.error(f"{object} is not found")
+            elif not shape.finalized:
+                logging.warning(f"{object} is not finalized")
             else:
                 tasks.append(shape.test_async())
         else:
@@ -54,6 +56,8 @@ async def cli_test_async(ctx, packages, filter_prefix, sketch, interface, assemb
 
             if shape is None:
                 logging.error(f"{object} is not found")
+            elif not shape.finalized:
+                logging.warning(f"{object} is not finalized")
             else:
                 tasks.extend([t.test_log_wrapper(tests_to_run, ctx, shape) for t in tests_to_run])
 
@@ -112,9 +116,17 @@ async def cli_test_async(ctx, packages, filter_prefix, sketch, interface, assemb
     show_envvar=True,
     help="The object is a scene",
 )
+@click.option(
+    "--concurrency-cap",
+    "-c",
+    type=int,
+    show_envvar=True,
+    default=32,
+    help="Maximum number of concurrently running tests",
+)
 @click.argument("object", type=str, required=False)  # help="Part (default), assembly or scene to test"
 @click.pass_obj
-def cli(ctx, package, recursive, filter, sketch, interface, assembly, scene, object):
+def cli(ctx, package, recursive, filter, concurrency_cap, sketch, interface, assembly, scene, object):
     package_obj = ctx.get_project(package)
     if not package_obj:
         logging.error(f"Package {package} is not found")
@@ -135,6 +147,7 @@ def cli(ctx, package, recursive, filter, sketch, interface, assembly, scene, obj
                 ctx,
                 packages,
                 filter_prefix=filter,
+                concurrency_cap=concurrency_cap,
                 sketch=sketch,
                 interface=interface,
                 assembly=assembly,

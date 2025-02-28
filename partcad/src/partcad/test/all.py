@@ -17,7 +17,8 @@ from .cam_forming import CamFormingTest
 _global_tests: list[Test] = []
 
 
-def tests() -> list[Test]:
+def tests(concurrency_cap: int) -> list[Test]:
+    Test.MAX_CONCURRENT_TESTS = concurrency_cap
     if len(_global_tests) == 0:
         _global_tests.extend(
             [
