@@ -23,6 +23,8 @@ from .project import Project
 from .project_factory_local import ProjectFactoryLocal
 from .project_factory_git import ProjectFactoryGit
 from .project_factory_tar import ProjectFactoryTar
+from .plugins import plugins
+from .plugin_export_png_reportlab import PluginExportPngReportlab
 from .user_config import user_config
 from .logging_ansi_terminal import init as logging_ansi_terminal_init
 from .logging_ansi_terminal import fini as logging_ansi_terminal_fini
@@ -49,6 +51,7 @@ __all__ = [
     "assembly_factory",
     "assembly_factory_python",
     "scene",
+    "plugins",
     "exception",
 ]
 

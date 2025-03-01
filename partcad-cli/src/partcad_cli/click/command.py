@@ -30,6 +30,7 @@ help_config.dump_to_globals()
 #     ]
 # }
 
+pc.plugins.export_png = pc.PluginExportPngReportlab()
 
 @click.command(cls=Loader)
 @click.option(
